@@ -6,6 +6,8 @@ countdown; let it reach zero and a bomb sequence plays out instead.
 
 ## Features
 
+- Launches to a blank screen and waits — the countdown doesn't start, or
+  even appear, until you press **Space**
 - Fullscreen countdown clock, duration set from the command line
 - Type a configured stop word at any time to defuse the countdown — the
   timer freezes, balloons rise, and a happy tune plays on loop
@@ -50,12 +52,18 @@ forcing SDL's X11 backend (via XWayland):
 SDL_VIDEODRIVER=x11 python countdown.py 5m
 ```
 
+The window opens on a blank black screen and stays there — nothing is
+running yet. This is deliberate: it lets you launch the program ahead of
+time and start the clock the moment the team is ready, just by pressing
+**Space**.
+
 ### Controls
 
 | Key | Effect |
 |---|---|
+| `Space` | Starts the countdown from the blank waiting screen |
 | *(type the stop word)* | Defuses the countdown, while it's still running |
-| `R` | Reset to a fresh countdown — only once a run has ended (success or failure) |
+| `R` | Reset to a fresh countdown — only once a run has ended (success or failure). Goes back to the blank waiting screen, so the next run also starts on Space |
 | `Ctrl+Q` | Quit the program (Escape is intentionally ignored) |
 
 ## Configuration
