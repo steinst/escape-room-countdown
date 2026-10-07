@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """Fullscreen escape-room countdown clock.
 
-Counts down from a given duration. Typing the configured stop word (see
-config.toml) defuses the countdown: the timer freezes (shown in green in the
-background) and balloons rise in front of it while a looping happy tune
+Launches straight to a blank screen -- the countdown doesn't start, or even
+appear, until the game master presses Space. Typing the configured stop word
+(see config.toml) defuses the countdown: the timer freezes (shown in green in
+the background) and balloons rise in front of it while a looping happy tune
 plays. Reaching zero plays out a bomb sequence: a 2-second burning fuse, then
 an explosion that booms, roars like thunder, and grows to fill the screen,
 settling into a held screen with a red 0:00, a failure message, and a
 looping ghostly bass tune. Either held screen stays until the game master
-presses R (reset to a fresh countdown of the same duration). The window only
-closes on Ctrl+Q -- Escape does nothing, so players can't accidentally stop
-the program.
+presses R, which goes back to the blank waiting screen for the next run. The
+window only closes on Ctrl+Q -- Escape does nothing, so players can't
+accidentally stop the program.
 """
 
 import argparse
@@ -33,6 +34,7 @@ from keybuffer import StopWordMatcher
 from renderer import svg_to_surface
 from svg_assets import PALETTE, balloon_svg, bomb_fuse_svg, digit_svg, explosion_svg, tagline_svg
 
+STATE_READY = "ready"
 STATE_COUNTING = "counting"
 STATE_SUCCESS = "success"
 STATE_FUSE = "fuse"
@@ -41,6 +43,7 @@ STATE_FAILURE_HELD = "failure_held"
 
 RESETTABLE_STATES = (STATE_SUCCESS, STATE_FAILURE_HELD)
 
+BG_READY = (0, 0, 0)
 BG_COUNTING = (5, 6, 15)
 BG_SUCCESS = (10, 20, 40)
 BG_FAILURE = (10, 2, 2)
@@ -111,8 +114,8 @@ def main() -> None:
 
     def fresh_state() -> dict:
         return {
-            "state": STATE_COUNTING,
-            "start_ms": pygame.time.get_ticks(),
+            "state": STATE_READY,
+            "start_ms": None,
             "matcher": StopWordMatcher(cfg.stop_word),
             "balloons": [],
             "frozen_digit_surf": None,
@@ -139,6 +142,9 @@ def main() -> None:
                     pygame.mixer.stop()
                     g = fresh_state()
                     last_digit_key = None
+                elif g["state"] == STATE_READY and event.key == pygame.K_SPACE:
+                    g["state"] = STATE_COUNTING
+                    g["start_ms"] = pygame.time.get_ticks()
                 elif g["state"] == STATE_COUNTING and g["matcher"].feed(event.unicode):
                     elapsed = (pygame.time.get_ticks() - g["start_ms"]) / 1000.0
                     frozen_text = fmt_mmss(args.duration - elapsed)
@@ -151,7 +157,10 @@ def main() -> None:
                     success_sound.play(loops=-1)
                     g["balloons"] = [Balloon(w, h, PALETTE[i % len(PALETTE)]) for i in range(NUM_BALLOONS)]
 
-        if g["state"] == STATE_COUNTING:
+        if g["state"] == STATE_READY:
+            screen.fill(BG_READY)
+
+        elif g["state"] == STATE_COUNTING:
             elapsed = (pygame.time.get_ticks() - g["start_ms"]) / 1000.0
             remaining = args.duration - elapsed
             if remaining <= 0:
