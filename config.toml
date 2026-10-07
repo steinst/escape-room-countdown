@@ -1,0 +1,23 @@
+# Escape Countdown configuration
+
+# Case-insensitive "stop word" the player/game-master must type (via keyboard,
+# while the fullscreen window has focus) to defuse the countdown. Minimum 3
+# characters.
+stop_word = "hestur"
+
+# Icelandic flavor text shown under the countdown while it's running (red).
+tagline = "AFTENGIÐ SPRENGJUNA ÁÐUR EN TÍMINN RENNUR ÚT"
+
+# Icelandic flavor text shown under the frozen timer once defused (green).
+tagline_success = "SPRENGJAN ER AFTENGD!"
+
+# Icelandic flavor text shown under the red 0:00 after the bomb goes off.
+tagline_failure = "YKKUR MISTÓKST — ALLT ER SPRUNGIÐ!"
+
+[sounds]
+# Optional: paths to custom sound files. Leave empty ("") to use the
+# built-in procedurally-generated placeholder sound instead.
+# .wav or .ogg strongly recommended (guaranteed SDL_mixer support); .mp3 may
+# work depending on the system's SDL_mixer build but is not guaranteed.
+success = ""
+failure = ""
