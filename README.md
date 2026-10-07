@@ -111,3 +111,8 @@ audio.py                   sound synthesis + the MIDI note data and writer
 config.toml                stop word, taglines, sound overrides
 assets/                     generated .mid files
 ```
+
+## License
+
+[MIT](LICENSE) — see the `LICENSE` file. (The extracted Grieg/Bach note data
+itself is centuries-old public domain music, not subject to copyright.)
