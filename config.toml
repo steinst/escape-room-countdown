@@ -3,7 +3,7 @@
 # Case-insensitive "stop word" the player/game-master must type (via keyboard,
 # while the fullscreen window has focus) to defuse the countdown. Minimum 3
 # characters.
-stop_word = "hestur"
+stop_word = "teppi"
 
 # Icelandic flavor text shown under the countdown while it's running (red).
 tagline = "AFTENGIÐ SPRENGJUNA ÁÐUR EN TÍMINN RENNUR ÚT"
