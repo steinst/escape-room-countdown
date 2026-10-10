@@ -287,6 +287,26 @@ def synth_ghost_bass() -> io.BytesIO:
     return _wav_bytes(_normalize(samples, peak=0.97))
 
 
+def synth_start_buzzer() -> io.BytesIO:
+    """A blaring arena horn like the basketball end-of-game buzzer: two
+    slightly detuned square-ish tones (for the harsh beating) held ~1.5 s."""
+    dur = 1.5
+    t = np.arange(int(SAMPLE_RATE * dur)) / SAMPLE_RATE
+    wave_ = np.zeros_like(t)
+    for f in (233.0, 237.0, 466.0, 474.0):
+        wave_ += np.sign(np.sin(2 * np.pi * f * t)) * (0.5 if f < 400 else 0.25)
+    env = np.minimum(1, t / 0.01) * np.minimum(1, (dur - t) / 0.08)
+    return _wav_bytes(_normalize(wave_ * env, peak=0.95))
+
+
+def synth_tick_beep() -> io.BytesIO:
+    """Short high beep for the last-ten-seconds countdown."""
+    dur = 0.12
+    t = np.arange(int(SAMPLE_RATE * dur)) / SAMPLE_RATE
+    env = np.minimum(1, t / 0.005) * np.minimum(1, (dur - t) / 0.02)
+    return _wav_bytes(_normalize(np.sin(2 * np.pi * 1200 * t) * env, peak=0.9))
+
+
 def load_sound(override_path: str | None, synth_fn) -> pygame.mixer.Sound:
     if override_path and os.path.isfile(override_path):
         return pygame.mixer.Sound(override_path)

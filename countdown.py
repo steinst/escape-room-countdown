@@ -15,6 +15,7 @@ accidentally stop the program.
 """
 
 import argparse
+import math
 import re
 import sys
 
@@ -27,6 +28,8 @@ from audio import (
     synth_fuse_hiss,
     synth_ghost_bass,
     synth_mountain_king,
+    synth_start_buzzer,
+    synth_tick_beep,
     synth_thunder,
 )
 from config_loader import load_config
@@ -54,8 +57,9 @@ COLOR_FROZEN = "#33ff66"
 COLOR_TAGLINE_NORMAL = "#ff6b6b"
 COLOR_TAGLINE_FROZEN = "#66ffa3"
 
-URGENT_THRESHOLD_SECONDS = 10
+URGENT_THRESHOLD_SECONDS = 30
 NUM_BALLOONS = 35
+FUSE_STEPS = 20
 
 
 def parse_duration(s: str) -> int:
@@ -98,6 +102,8 @@ def main() -> None:
     thunder_sound = pygame.mixer.Sound(synth_thunder())
     ghost_sound = pygame.mixer.Sound(synth_ghost_bass())
     fuse_hiss_sound = pygame.mixer.Sound(synth_fuse_hiss())
+    buzzer_sound = pygame.mixer.Sound(synth_start_buzzer())
+    beep_sound = pygame.mixer.Sound(synth_tick_beep())
 
     tagline_surf_normal = svg_to_surface(
         tagline_svg(cfg.tagline, fill=COLOR_TAGLINE_NORMAL), cache_key="tagline:normal"
@@ -112,16 +118,33 @@ def main() -> None:
         digit_svg("00:00", fill=COLOR_NORMAL), cache_key="digit:failure", size=(w, h // 3)
     )
 
+    def fuse_frame(progress: float) -> pygame.Surface:
+        step = round(progress * FUSE_STEPS)
+        return svg_to_surface(bomb_fuse_svg(step / FUSE_STEPS), cache_key=f"fuse:{step}")
+
+    # Rasterize every fuse frame now; doing it mid-animation stalls a Pi.
+    for i in range(FUSE_STEPS + 1):
+        fuse_frame(i / FUSE_STEPS)
+
+    def make_balloons() -> list:
+        # Built (and scaled once) while waiting, so the success scene appears instantly.
+        balloons = [Balloon(w, h, PALETTE[i % len(PALETTE)]) for i in range(NUM_BALLOONS)]
+        for b in balloons:
+            base = svg_to_surface(balloon_svg(b.color), cache_key=f"balloon:{b.color}")
+            b.surf = pygame.transform.smoothscale(base, (b.width, b.height))
+        return balloons
+
     def fresh_state() -> dict:
         return {
             "state": STATE_READY,
             "start_ms": None,
             "matcher": StopWordMatcher(cfg.stop_word),
-            "balloons": [],
+            "balloons": make_balloons(),
             "frozen_digit_surf": None,
             "fuse": None,
             "blast": None,
             "settled_explosion": None,
+            "last_beep": None,
         }
 
     g = fresh_state()
@@ -144,24 +167,22 @@ def main() -> None:
                     last_digit_key = None
                 elif g["state"] == STATE_READY and event.key == pygame.K_SPACE:
                     g["state"] = STATE_COUNTING
-                    g["start_ms"] = pygame.time.get_ticks()
+                    # The clock sits at the full time until the horn has finished.
+                    g["start_ms"] = pygame.time.get_ticks() + int(buzzer_sound.get_length() * 1000)
+                    buzzer_sound.play()
                 elif g["state"] == STATE_COUNTING and g["matcher"].feed(event.unicode):
-                    elapsed = (pygame.time.get_ticks() - g["start_ms"]) / 1000.0
-                    frozen_text = fmt_mmss(args.duration - elapsed)
-                    g["frozen_digit_surf"] = svg_to_surface(
-                        digit_svg(frozen_text, fill=COLOR_FROZEN),
-                        cache_key=f"digit:frozen:{frozen_text}",
-                        size=(w, h // 3),
-                    )
+                    # Recolor the digits already on screen (keeps glow shape via alpha) -- no re-rasterizing.
+                    frozen = digit_surf.copy()
+                    pygame.surfarray.pixels3d(frozen)[:] = (0x33, 0xFF, 0x66)
+                    g["frozen_digit_surf"] = frozen
                     g["state"] = STATE_SUCCESS
                     success_sound.play(loops=-1)
-                    g["balloons"] = [Balloon(w, h, PALETTE[i % len(PALETTE)]) for i in range(NUM_BALLOONS)]
 
         if g["state"] == STATE_READY:
             screen.fill(BG_READY)
 
         elif g["state"] == STATE_COUNTING:
-            elapsed = (pygame.time.get_ticks() - g["start_ms"]) / 1000.0
+            elapsed = max(0.0, (pygame.time.get_ticks() - g["start_ms"]) / 1000.0)
             remaining = args.duration - elapsed
             if remaining <= 0:
                 g["state"] = STATE_FUSE
@@ -170,6 +191,10 @@ def main() -> None:
                 screen.fill(BG_FAILURE)
             else:
                 screen.fill(BG_COUNTING)
+                whole = math.ceil(remaining)
+                if whole <= URGENT_THRESHOLD_SECONDS and whole != g["last_beep"]:
+                    g["last_beep"] = whole
+                    beep_sound.play()
                 text = fmt_mmss(remaining)
                 urgent = remaining <= URGENT_THRESHOLD_SECONDS and int(elapsed * 2) % 2 == 0
                 digit_key = (text, urgent)
@@ -194,16 +219,13 @@ def main() -> None:
             screen.blit(tagline_surf_frozen, tagline_rect)
             for b in g["balloons"]:
                 b.update(dt)
-                surf = svg_to_surface(balloon_svg(b.color), cache_key=f"balloon:{b.color}")
-                scaled = pygame.transform.smoothscale(surf, (b.width, b.height))
-                screen.blit(scaled, (b.x, b.y))
+                screen.blit(b.surf, (b.x, b.y))
 
         elif g["state"] == STATE_FUSE:
             screen.fill(BG_FAILURE)
             fuse = g["fuse"]
             fuse.update(dt)
-            svg = bomb_fuse_svg(fuse.progress)
-            surf = svg_to_surface(svg, cache_key=f"fuse:{round(fuse.progress, 2)}")
+            surf = fuse_frame(fuse.progress)
             screen.blit(surf, surf.get_rect(center=(w // 2, h // 2)))
             if fuse.done:
                 fuse_hiss_sound.stop()
@@ -217,7 +239,7 @@ def main() -> None:
             blast = g["blast"]
             blast.update(dt)
             surf = svg_to_surface(explosion_svg(), cache_key="explosion")
-            scaled = pygame.transform.smoothscale(surf, blast.current_size())
+            scaled = pygame.transform.scale(surf, blast.current_size())  # smoothscale is too slow at this size
             screen.blit(scaled, scaled.get_rect(center=(w // 2, h // 2)))
             if blast.done:
                 g["state"] = STATE_FAILURE_HELD

@@ -9,6 +9,9 @@ countdown; let it reach zero and a bomb sequence plays out instead.
 - Launches to a blank screen and waits — the countdown doesn't start, or
   even appear, until you press **Space**
 - Fullscreen countdown clock, duration set from the command line
+- Pressing **Space** sounds an arena horn (like a basketball end-of-game
+  buzzer); the clock holds the full time until the horn finishes, then runs
+- During the final 30 seconds the clock blinks white and beeps once a second
 - Type a configured stop word at any time to defuse the countdown — the
   timer freezes, balloons rise, and a happy tune plays on loop
 - Let it reach zero and a 2-second burning fuse leads into an explosion
