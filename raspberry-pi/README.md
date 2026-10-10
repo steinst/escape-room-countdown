@@ -43,5 +43,6 @@ restarts the app with the new value. The keyboard layout is Icelandic.
 - For a command line while the app keeps running: **Ctrl+Alt+F2**, log in as
   `escape`; **Ctrl+Alt+F1** returns to the app. To stop the app for the
   session: `sudo systemctl stop getty@tty1`.
+- The screen is set to 1280x720 (see `~/.xinitrc` on the Pi) because 1080p is too slow for a Pi 3.
 - The program lives in `/opt/escape-countdown` on the Pi. To update it over
   SSH: `scp -o PubkeyAuthentication=no countdown.py escape@<pi-ip>:/opt/escape-countdown/`

@@ -50,6 +50,8 @@ unclutter -idle 0 &
 DUR=$(grep -v '^#' /boot/firmware/countdown.txt 2>/dev/null | head -1 | tr -d '[:space:]')
 CFG=/boot/firmware/escape-countdown.toml
 [ -f "$CFG" ] || CFG=/opt/escape-countdown/config.toml
+# 720p: a Pi 3 can't keep the animations smooth at 1080p
+xrandr -s 1280x720
 cd /opt/escape-countdown
 SDL_VIDEODRIVER=x11 exec ./venv/bin/python countdown.py "${DUR:-60m}" --config "$CFG"
 X
